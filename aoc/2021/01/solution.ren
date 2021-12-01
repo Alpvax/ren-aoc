@@ -1,0 +1,32 @@
+import "ren/array" as Array
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/string" as String
+import "ren/result" as Result
+
+pub fun main = [ year, day, part ] => {
+    let parse = String.split "\\n" >> Array.filterMap String.toNumber
+    let input = File.open "./input.txt" { sync: true } |> Result.map parse
+
+    ret when [ input, String.toNumber part ]
+        is [ #ok numbers, 1 ]    => Console.log (solvePartOne numbers)
+        is [ #ok numbers, 2 ]    => Console.log (solvePartTwo numbers)
+        is [ #err e, _ ]            => Console.error e
+        else                        => Console.warn `Unknown part: "${part}".`
+}
+
+
+fun solvePartOne = numbers => { ret Array.foldl (fun [n, prev] num => [if num > prev then n + 1 else n, num]) [0, numbers[0]] (Array.drop 1 numbers) }
+
+fun solvePartTwo = numbers => {
+    fun window = [n, prev, val0, val1] val2 => {
+        let trip = val0 + val1 + val2
+        ret [
+            if prev && trip > prev then n + 1 else n,
+            trip,
+            val1,
+            val2
+        ]
+    }
+    ret (Array.foldl window [0, (), numbers[0], numbers[1]] (Array.drop 2 numbers))[0]
+}
