@@ -1,0 +1,47 @@
+import "ren/array" as Array
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/string" as String
+import "ren/result" as Result
+
+enum Direction
+    = #depth _
+    | #horizontal _
+
+fun parseLines = line => {
+    let s = String.split " " line
+    ret when [s[0], String.toNumber s[1]]
+        is ["down", #just num]    => ["#just", (#depth num)]
+        is ["up", #just num]      => ["#just", (#depth (0 - num))]
+        is ["forward", #just num] => ["#just", (#horizontal num)]
+        is [dir, num]             => ["#nothing"]
+}
+
+pub fun main = [ year, day, part ] => {
+    let parse = String.split "\\n" >> Array.filterMap parseLines
+    let input = File.open "./input.txt" { sync: true } |> Result.map parse
+
+    ret when [ input, String.toNumber part ]
+        is [ #ok instructions, #just 1 ]    => solvePartOne instructions
+        is [ #ok instructions, #just 2 ]    => solvePartTwo instructions
+        is [ #err e, _ ]            => Console.error e
+        else                        => Console.warn `Unknown part: "${part}".`
+}
+
+fun solvePartOne = instructions => {
+    fun addInstruction = [depth, horz] inst => 
+        when inst
+            is #depth n => [depth + n, horz]
+            is #horizontal n => [depth, horz + n]
+    let res = Array.foldl addInstruction [0, 0] instructions
+    ret res[0] * res[1]
+}
+
+fun solvePartTwo = instructions => {
+    fun addInstruction = [depth, horz, aim] inst =>
+        when inst
+            is #depth n => [depth, horz, aim + n]
+            is #horizontal n => [depth + aim * n, horz + n, aim]
+    let res = Array.foldl addInstruction [0, 0, 0] instructions
+    ret res[0] * res[1]
+}
