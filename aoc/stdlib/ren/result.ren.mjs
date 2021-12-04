@@ -1,3 +1,4 @@
+import {not} from  './logic.ren.mjs'
 import * as Maybe from './maybe.ren.mjs'
 
 export function $ok (a) {
@@ -25,6 +26,29 @@ export function map (f) {
             var e = r[1]
             return $err (e)
         }
+    }
+}
+
+export function map2 (f) {
+    return (rA) => (rB) => {
+        return (($) => {
+            if (Array.isArray($) && $.length >= 2 && Array.isArray($[0]) && $[0].length >= 2 && $[0][0] == '#ok' && Array.isArray($[1]) && $[1].length >= 2 && $[1][0] == '#ok') {
+                var a = $[0][1]
+                var b = $[1][1]
+                return $ok (f (a) (b))
+            }
+
+            if (Array.isArray($) && $.length >= 2 && Array.isArray($[0]) && $[0].length >= 2 && $[0][0] == '#ok' && Array.isArray($[1]) && $[1].length >= 2 && $[1][0] == '#err') {
+                var a = $[0][1]
+                var a = $[1][1]
+                return $err (e)
+            }
+
+            if (Array.isArray($) && $.length >= 2 && Array.isArray($[0]) && $[0].length >= 2 && $[0][0] == '#err') {
+                var e = $[0][1]
+                return $err (e)
+            }
+        })([rA, rB])
     }
 }
 
@@ -57,3 +81,14 @@ export function withDefault (b) {
 }
 
 export var unwrap = withDefault ()
+
+export function isOk (result) {
+    if (Array.isArray(result) && result.length >= 2 && result[0] == '#ok') {
+        
+        return true
+    }
+
+    return false
+}
+
+export var isErr = (($) => not (isOk ($)))
