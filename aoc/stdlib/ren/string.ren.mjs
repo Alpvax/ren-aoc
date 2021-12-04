@@ -63,3 +63,14 @@ export function take(n) {
             : $just(string.substring(0, n))
     }
 }
+
+// toIntRadix : String -> Maybe Number
+export function toIntRadix(radix) {
+    return (string) => {
+        const number = parseInt(string, radix)
+
+        return isNaN(number)
+            ? ['#nothing']
+            : ['#just', number]
+    }
+}

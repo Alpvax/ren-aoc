@@ -61,3 +61,9 @@ export function withDefault (b) {
 }
 
 export var unwrap = withDefault ()
+
+export function ofNullable (a) {
+    return a
+        ? $just (a)
+        : $nothing
+}

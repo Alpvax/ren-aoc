@@ -27,3 +27,6 @@ pub fun withDefault = b m =>
 
 // unwrap : Maybe a -> a
 pub let unwrap = withDefault ()
+
+// ofNullable : a -> Maybe a
+pub fun ofNullable = a => if a then #just a else #nothing
