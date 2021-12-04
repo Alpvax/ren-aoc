@@ -1,0 +1,73 @@
+import "ren/array" as Array
+import "ren/bitwise" as Bitwise
+import "ren/compare" as Compare
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/function" exposing {always}
+import "ren/math" as Math
+import "ren/maybe" as Maybe exposing {#just, #nothing}
+import "ren/number" exposing {toBinary}
+import "ren/result" as Result
+import "ren/string" as String
+
+pub fun main = [ year, day, part ] => {
+    let parse1 = Array.filterMap (fun s => {
+        let arr = String.split "" s |> Array.map (String.toNumber >> Maybe.unwrap)
+        ret if (Array.length arr) > 0 then #just arr else #nothing
+    })
+    let parse2 = Array.filterMap (fun s => {
+        let n = parseBinary s
+        ret if n then #just n else #nothing
+    })
+    let input = File.open "./input.txt" { sync: true } |> Result.map (String.split "\\n")
+
+    ret when [ input, String.toNumber part ]
+        is [ #ok lines, #just 1 ]   => solvePartOne (parse1 lines)
+        is [ #ok lines, #just 2 ]   => solvePartTwo (parse2 lines)
+        is [ #err e, _ ]            => Console.error e
+        else                        => Console.warn `Unknown part: "${part}".`
+}
+
+let parseBinary = fun numStr =>
+    String.toIntRadix 2 numStr
+        |> Maybe.unwrap
+
+let sumArrays = fun a b => { ret Array.map2 Math.add a b }
+
+let solvePartOne = fun numbers => {
+    let halfLen = (Array.length numbers) / 2
+    let count1s = Array.foldl sumArrays (Array.repeat 12 0) numbers
+    let [gamma, epsilon] = Array.foldl (fun [g, e] n => if n > halfLen then [g + "1", e + "0"] else [g + "0", e + "1"]) ["", ""] count1s
+    ret (parseBinary gamma) * (parseBinary epsilon)
+}
+
+let filterMode = fun comparator bitIndex numbers => {
+    let mask = Bitwise.lshift (11 - bitIndex) 1
+    let keep = {
+        let countHigh = (
+            Array.filterMap
+                (Bitwise.and mask >> Maybe.ofNullable >> Maybe.map (always 1))
+                numbers
+        )|> Array.sum
+        let halfLen = (Array.length numbers) / 2
+        ret if comparator countHigh halfLen then mask else 0
+    }
+    ret Array.filter (fun num => (Bitwise.and mask num) == keep) numbers
+}
+
+let solvePartTwo = fun numbers => {
+    let [ogFilter, co2Filter] = [
+        filterMode (fun countHigh halfLen => countHigh >= halfLen),
+        filterMode (fun countHigh halfLen => countHigh < halfLen)
+    ]
+    let filterUntilSingleVal = fun filter bitIndex arr => {
+        let filtered = filter bitIndex arr
+        ret if Array.length filtered > 1
+            then
+                filterUntilSingleVal filter (bitIndex + 1) filtered
+            else
+                filtered[0]
+    }
+    
+    ret (filterUntilSingleVal ogFilter 0 numbers) * (filterUntilSingleVal co2Filter 0 numbers)
+}
