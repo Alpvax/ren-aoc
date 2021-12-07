@@ -67,3 +67,27 @@ export function ofNullable (a) {
         ? $just (a)
         : $nothing
 }
+
+export function exists (m) {
+    if (Array.isArray(m) && m.length >= 2 && m[0] == '#just') {
+        var a = m[1]
+        return true
+    }
+
+    if (Array.isArray(m) && m.length >= 1 && m[0] == '#nothing') {
+        
+        return false
+    }
+}
+
+export function isNothing (m) {
+    if (Array.isArray(m) && m.length >= 2 && m[0] == '#just') {
+        var a = m[1]
+        return false
+    }
+
+    if (Array.isArray(m) && m.length >= 1 && m[0] == '#nothing') {
+        
+        return true
+    }
+}

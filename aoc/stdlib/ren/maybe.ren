@@ -30,3 +30,15 @@ pub let unwrap = withDefault ()
 
 // ofNullable : a -> Maybe a
 pub fun ofNullable = a => if a then #just a else #nothing
+
+// exists : Maybe a -> Boolean
+pub fun exists = m =>
+    when m
+        is #just a => true
+        is #nothing => false
+
+// isNothing : Maybe a -> Boolean
+pub fun isNothing = m =>
+    when m
+        is #just a => false
+        is #nothing => true
