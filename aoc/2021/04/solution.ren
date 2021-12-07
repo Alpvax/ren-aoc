@@ -1,0 +1,128 @@
+import "ren/array" as Array exposing { #continue, #stop }
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/function" as Function
+import "ren/logic" as Logic
+import "ren/maybe" as Maybe exposing { #just, #nothing }
+import "ren/string" as String
+import "ren/result" as Result exposing { #ok, #err}
+
+pub fun main = [ year, day, part, test ] => {
+    let input = if Logic.not test
+        then File.open "./input.txt" { sync: true } |> Result.map (String.split "\\n")
+        else #ok [
+            "7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1",
+            "",
+            "22 13 17 11  0",
+            "8  2 23  4 24",
+            "21  9 14 16  7",
+            "6 10  3 18  5",
+            "1 12 20 15 19",
+            "",
+            "3 15  0  2 22",
+            "9 18 13 17  5",
+            "19  8  7 25 23",
+            "20 11 10 24  4",
+            "14 21 16 12  6",
+            "",
+            "14 21 17 24  4",
+            "10 16 15  9 19",
+            "18  8 23 26 20",
+            "22 11 13  6  5",
+            "2  0 12  3  7"
+        ]
+
+    ret when input
+        is #ok lines => {
+            let [callOuts, cards] = parseInput lines
+            ret when String.toNumber part
+                is #just 1 => solvePartOne callOuts cards
+                is #just 2 => solvePartTwo callOuts cards
+                else => Console.warn `Unknown part: "${part}".`
+        }
+        is #err e => Console.error e
+}
+
+let parseInput = fun lines => {
+    let toNumbers = fun sep line =>
+        Array.filterMap
+            (fun s => if String.isEmpty s then #nothing else String.toNumber s)
+            (String.split sep line)
+    ret [
+        toNumbers "," lines[0],
+        (Array.foldr (fun [complete, partial] line =>
+            if String.length line > 0 then {
+                    let p = (toNumbers " " line) :: partial
+                    ret if Array.length p > 4
+                        then
+                            [p :: complete, []]
+                        else
+                            [complete, p]
+                } else
+                    [complete, partial]
+        ) [[], []] (Array.drop 2 lines))[0]
+    ]
+}
+
+let display2d = fun card => {
+    let _ = [Console.log (String.join "\\n" (Array.map (String.join ",\\t") card)), Console.log ""]
+    ret card
+}
+
+let cardColumns = fun card =>
+    Array.foldr
+        (fun columns row => Array.map2 Array.cons row columns)
+        [[], [], [], [], []]
+        card
+
+let checkComplete = fun row =>
+    ((Array.filter Maybe.exists >> Array.length) row) == 0
+
+let sumRemaining = fun card =>
+    Array.foldl
+        (fun t row => t + (Array.filterMap Function.identity >> Array.sum) row)
+        0
+        card
+
+let unwrapContinue = fun [_, row] => row
+
+let solvePartOne = fun callOuts blankCards => {
+    let cards = Array.map (Array.map (Array.map #just)) blankCards
+    ret Array.foldlUntil (fun cards callOut => {
+        let markedCards = Array.map
+            (fun card => {
+                let markedCard =
+                    Array.map
+                        (fun row => {
+                            let markedRow = Array.map
+                                (fun num => 
+                                    when num
+                                        is #just n if n != callOut => #just n
+                                        else => #nothing
+                                ) row
+                            ret if checkComplete markedRow then #stop markedRow else #continue markedRow
+                        })
+                        card
+                ret if (
+                    Array.any
+                        (fun row => when row
+                            is #continue _ => false
+                            is #stop _ => true
+                        )
+                        markedCard
+                    ) || (Array.any (checkComplete) (cardColumns (Array.map unwrapContinue markedCard)))
+                then
+                    #stop (sumRemaining (Array.map unwrapContinue markedCard))
+                else
+                    #continue (Array.map unwrapContinue markedCard)
+            }) cards
+        let completed = Array.filterMap (
+            fun cardResult => when cardResult
+                is #continue _ => #nothing
+                is #stop remaining => #just remaining
+        ) markedCards
+        ret when Array.head completed
+            is #just num => #stop (num * callOut)
+            is #nothing => #continue (Array.map unwrapContinue markedCards)
+    }) cards callOuts
+}
