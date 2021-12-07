@@ -48,3 +48,22 @@ export function incr(n) {
 export function decr(n) {
     return n - 1
 }
+
+// min : Number -> Number -> Number
+export function min(x) {
+    return (y) => {
+        return Math.min(x, y)
+    }
+}
+
+// max : Number -> Number -> Number
+export function max(x) {
+    return (y) => {
+        return Math.max(x, y)
+    }
+}
+
+// abs : Number -> Number
+export function abs(x) {
+    return Math.abs(x)
+}

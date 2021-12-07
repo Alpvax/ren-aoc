@@ -4,8 +4,8 @@ import * as Maybe from './maybe.ren.mjs'
 export function get(key) {
     return (obj) => {
         return key in obj
-            ? Maybe.just(obj[key])
-            : Maybe.nothing
+            ? Maybe.$just(obj[key])
+            : Maybe.$nothing
     }
 }
 
@@ -35,4 +35,14 @@ export function construct(o) {
     return (args) => {
         return new o(...args)
     }
+}
+
+// keys : Object -> Array (String | Number | Symbol)
+export function keys(obj) {
+    return Object.keys (obj)
+}
+
+// values : Object -> Array *
+export function values(obj) {
+    return Object.values (obj)
 }
