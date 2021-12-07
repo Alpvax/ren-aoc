@@ -206,6 +206,11 @@ export function partition(n) {
     }
 }
 
+// unique : Array a -> Array a ->
+export function unique(arr) {
+    return [...new Set(arr)]
+}
+
 // UTILS -----------------------------------------------------------------------
 // length : Array a -> Number
 export function length(arr) {
