@@ -74,3 +74,32 @@ export function toIntRadix(radix) {
             : ['#just', number]
     }
 }
+
+export function takeWhile(f) {
+    return (string) => {
+        let i = 0
+
+        while (string !== '') {
+            if (f(string[i])) {
+                i++
+                continue
+            }
+
+            break
+        }
+
+        return take(i)(string)
+    }
+}
+
+export function collect(f) {
+    return (string) => {
+        return string
+    }
+}
+
+//
+
+export function isDigit(s) {
+    return s[i].match(/\d/) !== null
+}

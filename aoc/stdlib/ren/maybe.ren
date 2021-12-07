@@ -42,3 +42,9 @@ pub fun isNothing = m =>
     when m
         is #just a => false
         is #nothing => true
+
+//
+pub fun or = mB mA =>
+    when mA
+        is #just a => #just a
+        is #nothing => mB

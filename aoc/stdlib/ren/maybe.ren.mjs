@@ -62,6 +62,7 @@ export function withDefault (b) {
 
 export var unwrap = withDefault ()
 
+<<<<<<< HEAD
 export function ofNullable (a) {
     return a
         ? $just (a)
@@ -89,5 +90,18 @@ export function isNothing (m) {
     if (Array.isArray(m) && m.length >= 1 && m[0] == '#nothing') {
         
         return true
+=======
+export function or (mB) {
+    return (mA) => {
+        if (Array.isArray(mA) && mA.length >= 2 && mA[0] == '#just') {
+            var a = mA[1]
+            return $just (a)
+        }
+
+        if (Array.isArray(mA) && mA.length >= 1 && mA[0] == '#nothing') {
+            
+            return mB
+        }
+>>>>>>> d79e1b0030bc8c45be9486d82eb5b995f1ee49ba
     }
 }

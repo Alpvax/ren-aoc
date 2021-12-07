@@ -6,7 +6,6 @@ import "ren/file" as File
 import "ren/function" exposing {always}
 import "ren/math" as Math
 import "ren/maybe" as Maybe exposing {#just, #nothing}
-import "ren/number" exposing {toBinary}
 import "ren/result" as Result
 import "ren/string" as String
 
@@ -68,6 +67,6 @@ let solvePartTwo = fun numbers => {
             else
                 filtered[0]
     }
-    
+
     ret (filterUntilSingleVal ogFilter 0 numbers) * (filterUntilSingleVal co2Filter 0 numbers)
 }
