@@ -68,7 +68,7 @@ export function ofNullable (a) {
         : $nothing
 }
 
-export function exists (m) {
+export function isJust (m) {
     if (Array.isArray(m) && m.length >= 2 && m[0] == '#just') {
         var a = m[1]
         return true
