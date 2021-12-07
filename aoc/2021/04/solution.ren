@@ -76,7 +76,7 @@ let cardColumns = fun card =>
         card
 
 let checkComplete = fun row =>
-    ((Array.filter Maybe.exists >> Array.length) row) == 0
+    ((Array.filter Maybe.isJust >> Array.length) row) == 0
 
 let sumRemaining = fun card =>
     Array.foldl
@@ -86,43 +86,69 @@ let sumRemaining = fun card =>
 
 let unwrapContinue = fun [_, row] => row
 
+enum BingoCard
+    = #playing _
+    | #complete _
+
+let playRound = fun cards callOut =>
+    Array.map
+        (fun card => {
+            let markedCard =
+                Array.map
+                    (fun row => {
+                        let markedRow = Array.map
+                            (fun num => 
+                                when num
+                                    is #just n if n != callOut => #just n
+                                    else => #nothing
+                            ) row
+                        ret if checkComplete markedRow then #stop markedRow else #continue markedRow
+                    })
+                    card
+            ret if (
+                Array.any
+                    (fun row => when row
+                        is #continue _ => false
+                        is #stop _ => true
+                    )
+                    markedCard
+                ) || (Array.any (checkComplete) (cardColumns (Array.map unwrapContinue markedCard)))
+            then
+                #complete (sumRemaining (Array.map unwrapContinue markedCard))
+            else
+                #playing (Array.map unwrapContinue markedCard)
+        })
+        cards
+
 let solvePartOne = fun callOuts blankCards => {
     let cards = Array.map (Array.map (Array.map #just)) blankCards
     ret Array.foldlUntil (fun cards callOut => {
-        let markedCards = Array.map
-            (fun card => {
-                let markedCard =
-                    Array.map
-                        (fun row => {
-                            let markedRow = Array.map
-                                (fun num => 
-                                    when num
-                                        is #just n if n != callOut => #just n
-                                        else => #nothing
-                                ) row
-                            ret if checkComplete markedRow then #stop markedRow else #continue markedRow
-                        })
-                        card
-                ret if (
-                    Array.any
-                        (fun row => when row
-                            is #continue _ => false
-                            is #stop _ => true
-                        )
-                        markedCard
-                    ) || (Array.any (checkComplete) (cardColumns (Array.map unwrapContinue markedCard)))
-                then
-                    #stop (sumRemaining (Array.map unwrapContinue markedCard))
-                else
-                    #continue (Array.map unwrapContinue markedCard)
-            }) cards
+        let markedCards = playRound cards callOut
         let completed = Array.filterMap (
             fun cardResult => when cardResult
-                is #continue _ => #nothing
-                is #stop remaining => #just remaining
+                is #playing _ => #nothing
+                is #complete remaining => #just remaining
         ) markedCards
         ret when Array.head completed
             is #just num => #stop (num * callOut)
             is #nothing => #continue (Array.map unwrapContinue markedCards)
     }) cards callOuts
+}
+
+let solvePartTwo = fun callOuts blankCards => {
+    let cards = Array.map (Array.map (Array.map #just)) blankCards
+    ret Array.foldlUntil (fun [cards, completed] callOut => {
+        let markedCards = playRound cards callOut
+        let [incomplete, complete] = Array.foldr
+            (
+                fun [playing, complete] card => when card
+                    is #playing card1 => [card1 :: playing, complete]
+                    is #complete remaining => [playing, remaining :: complete]
+            )
+            [[], completed]
+            markedCards
+        ret if Array.length incomplete < 1
+            then #stop (complete[0] * callOut)
+            else #continue [incomplete, complete]
+    }) [cards, []] callOuts
 }
