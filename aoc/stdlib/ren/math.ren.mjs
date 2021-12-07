@@ -72,3 +72,21 @@ export function abs(x) {
 export function sign(x) {
     return Math.sign(x)
 }
+export function floor(n) {
+    return Math.floor(n)
+}
+
+export function ceil(n) {
+    return Math.ceil(n)
+}
+
+export function median(ns) {
+    const mid = ceil(ns.length / 2)
+    const sorted = ns.sort((a, b) => a - b)
+
+    return ns.length % 2 === 0 ? (sorted[mid] + sorted[mid - 1]) / 2 : sorted[mid - 1]
+}
+
+export function mean(ns) {
+    return ns.length == 0 ? 0 : ns.reduce((a, b) => a + b) / ns.length
+}
