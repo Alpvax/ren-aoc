@@ -57,8 +57,37 @@ let getOverlap = fun lineA lineB => {
         is [#horizontal yA [minXA, maxXA], #vertical xB [minYB, maxYB]] =>
             if minXA <= xB && xB <= maxXA && minYB <= yA && yA <= maxYB then #just [[xB, yA]] else #nothing
 
+
+        is [#diagonal mA [xA, yA], #vertical xB [minYB, maxYB]] =>
+            if xA <= xB && xB <= xA + (Math.abs mA) then {
+                let diagY = yA + (xB - xA) * mA
+                ret if minYB <= diagY && diagY <= maxYB then [[xB, diagY]] else #nothing
+            } else #nothing
+        is [#vertical xA [minYA, maxYA], #diagonal mB [xB, yB]] =>
+            if xB <= xA && xA <= xB + (Math.abs mB) then {
+                let diagY = yB + (xA - xB) * mA
+                ret if minYA <= diagY && diagY <= maxYA then [[xA, diagY]] else #nothing
+            } else #nothing
+
+//        is [#diagonal mA [xA, yA], #horizontal yB [minXB, maxXB]] =>
+//            if yA <= yB && yB <= yA + mA then {
+//                let diagX = yA + (yB - yA) * mA
+//                ret if minXB <= diagX && diaX <= maxXB then [[diagX, yB]]
+//            } else #nothing
+//        is [#horizontal yA [minXA, maxXA], #diagonal mB [xB, yB]] =>
+//            if yB <= yA && yA <= yB + mB then {
+//                let diagX = yB + (xA - xB) * mA
+//                ret if minXA <= diagX && diagX <= maxXA then [[diagX, yA]]
+//            } else #nothing
+//
+//        is [#diagonal mA [xA, yA], #diagonal mB [xB, yB]] => {
+//            let signA = Math.sign mA
+//            ret if (signA) == (Math.sign mB)
+//                then 
+//        }
+        
         else => {
-            let _ = Console.log "Not implemented for diagonanals"
+            let _ = Console.log "Not fully implemented for diagonals"
             ret #nothing
         }
     ret overlaps
@@ -73,18 +102,16 @@ let parseInput = fun lines =>
             then #vertical ends[0][0] (ordered ends[0][1] ends[1][1])
             else if ends[0][1] == ends[1][1]
                 then #horizontal ends[0][1] (ordered ends[0][0] ends[1][0])
-                else #diagonal (Array.map (String.join ",") ends)
+                else (
+                    if ends[0][0] < ends[1][0]
+                        then #diagonal (ends[1][1] - ends[0][1]) ends[0]
+                        else #diagonal (ends[0][1] - ends[1][1]) ends[1]
+                )
         let _ = Console.log `${line} => ${vent}`
         ret vent :: vents
     }) [] lines
 
-let solvePartOne = fun vents => {
-    let axialVents = Array.filter
-        (fun v => when v
-            is #diagonal _ => false
-            else => true
-        )
-        vents
+let findIntersections = fun vents => {
     let [intersections, _] = Array.foldl (fun [intersections, uncheckedVents] vent => {
         let remainingUnchecked = Array.tail uncheckedVents
         let overlaps = Array.filterMap (fun v => getOverlap vent v) remainingUnchecked
@@ -93,7 +120,18 @@ let solvePartOne = fun vents => {
             []
             overlaps
         ret [Array.unique (flatOverlaps ++ intersections), remainingUnchecked]
-    }) [[], axialVents] axialVents
+    }) [[], vents] vents
+    ret intersections
+}
+
+let solvePartOne = fun vents => {
+    let axialVents = Array.filter
+        (fun v => when v
+            is #diagonal _ => false
+            else => true
+        )
+        vents
+    let intersections = findIntersections axialVents
     let _ = Console.log intersections
     ret Array.length intersections
 }

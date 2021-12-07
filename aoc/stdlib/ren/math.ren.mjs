@@ -67,3 +67,8 @@ export function max(x) {
 export function abs(x) {
     return Math.abs(x)
 }
+
+// sign : Number -> Number
+export function sign(x) {
+    return Math.sign(x)
+}
