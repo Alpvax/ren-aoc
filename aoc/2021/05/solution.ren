@@ -1,9 +1,10 @@
 import "ren/array" as Array exposing { #continue, #stop }
+import "ren/compare" as Compare
 import "ren/console" as Console
 import "ren/file" as File
-import "ren/function" as Function
-import "ren/logic" as Logic
+import "ren/math" as Math
 import "ren/maybe" as Maybe exposing { #just, #nothing }
+import "ren/object" as Object
 import "ren/string" as String
 import "ren/result" as Result exposing { #ok, #err}
 
@@ -25,17 +26,60 @@ pub fun main = [ year, day, part, test ] => {
 
     ret when input
         is #ok lines => {
-            let map = parseInput lines
+            let vents = parseInput lines
             ret when String.toNumber part
-                is #just 1 => solvePartOne map
-                is #just 2 => solvePartTwo map
+                is #just 1 => solvePartOne vents
+                is #just 2 => solvePartTwo vents
                 else => Console.warn `Unknown part: "${part}".`
         }
         is #err e => Console.error e
 }
 
-let parseInput = fun lines => "UNIMPLEMENTED"
+enum Alignment
+    = #axisAligned _
+    | #diagonal _
 
-let solvePartOne = fun map => "UNIMPLEMENTED"
+let parseInput = fun lines =>
+    Array.foldr (fun vents line => if String.isEmpty line then vents else {
+        let ends = String.split " -> " line
+            |> Array.map ((String.split ",") >> (Array.map (String.toNumber >> Maybe.unwrap)))
+        let orderedRange = fun a b => Array.range (Math.min a b) ((Math.abs (a - b)) + 1)
+        let positions = if ends[0][0] == ends[1][0]
+            then #axisAligned (Array.map
+                (fun i => `${ends[0][0]},${i}`)
+                (orderedRange ends[0][1] ends[1][1])
+            )
+            else if ends[0][1] == ends[1][1]
+                then #axisAligned (Array.map
+                    (fun i => `${i},${ends[0][1]}`)
+                    (orderedRange ends[0][0] ends[1][0])
+                )
+                else #diagonal (Array.map (String.join ",") ends)
+        ret positions :: vents
+    }) [] lines
 
-let solvePartTwo = fun map => "UNIMPLEMENTED"
+let solvePartOne = fun vents => {
+    let axialPositions = Array.foldr (fun positions vent =>
+        when vent
+            is #diagonal _ => positions
+            is #axisAligned ventPositions => Array.foldr
+                ( fun posObj pos => Object.mapProperty
+                    ( fun current => {
+                        let res = when current
+                            is #just n => n + 1
+                            is #nothing => 1
+                        let _ = Console.log `${pos}: ${Maybe.withDefault 0 current} -> ${res}`
+                        ret res
+                    }
+                    )
+                    pos
+                    posObj
+                )
+                positions
+                ventPositions
+    ) {} vents
+    ret Array.filter (fun val => val >= 2) (Object.values axialPositions)
+        |> Array.length
+}
+
+let solvePartTwo = fun vents => "UNIMPLEMENTED"
