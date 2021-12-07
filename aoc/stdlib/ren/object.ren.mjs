@@ -22,3 +22,10 @@ export function has(key) {
         return key in obj
     }
 }
+
+// mapProperty : (Maybe a -> b) -> String -> * -> *
+export function mapProperty(f) {
+    return (key) => (obj) => {
+        return set (key) (f (get (key) (obj))) (obj)
+    }
+}
