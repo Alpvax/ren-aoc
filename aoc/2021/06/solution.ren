@@ -1,0 +1,38 @@
+import "ren/array" as Array
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/maybe" as Maybe exposing { #just, #nothing }
+import "ren/object" as Object
+import "ren/string" as String
+import "ren/result" as Result exposing { #ok, #err}
+
+pub fun main = [ year, day, part, test ] => {
+    let input = if Logic.not test
+        then File.open "./input.txt" { sync: true } |> Result.map (
+            String.split ","
+            >> Array.filterMap String.toNumber
+            >> (
+                Array.foldr
+                    (fun acc i => Array.updateAt i (fun n => n + 1) acc)
+                    (Array.repeat 9 0)
+            )
+        )
+        else #ok [3,4,3,1,2]
+
+    ret when [input, String.toNumber part]
+        is [#ok numbers, #just 1] => solvePartOne numbers
+        is [#ok numbers, #just 2] => solvePartTwo numbers
+        is [#err e, _] => Console.error e
+        else => Console.warn `Unknown part: "${part}".`
+}
+
+let runCycles = fun num fish => Array.sum
+    (Array.iterate
+        num
+        (fun [f0, f1, f2, f3, f4, f5, f6, f7, f8] => [f1, f2, f3, f4, f5, f6, f7 + f0, f8, f0])
+        fish
+    )
+
+let solvePartOne = runCycles 80
+
+let solvePartTwo = runCycles 256
