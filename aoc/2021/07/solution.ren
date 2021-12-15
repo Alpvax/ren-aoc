@@ -1,0 +1,41 @@
+import "ren/array" as Array exposing { #continue, #stop }
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/math" as Math
+import "ren/maybe" as Maybe exposing { #just, #nothing }
+import "ren/string" as String
+import "ren/result" as Result exposing { #ok, #err}
+
+pub fun main = [ year, day, part, test ] => {
+    let input = if Logic.not test
+        then File.open "./input.txt" { sync: true } |> Result.map (String.split "," >> Array.filterMap String.toNumber)
+        else #ok [16,1,2,0,4,2,7,1,2,14]
+
+    ret when input
+        is #ok numbers => {
+            ret when String.toNumber part
+                is #just 1 => solvePartOne numbers
+                is #just 2 => solvePartTwo numbers
+                else => Console.warn `Unknown part: "${part}".`
+        }
+        is #err e => Console.error e
+}
+
+let solvePartOne = fun numbers => {
+    let index = Math.median numbers
+    ret Array.map (fun crab => Math.abs (crab - index)) numbers
+        |> Array.sum
+}
+
+let solvePartTwo = fun numbers => {
+    let totalFuel = fun index crabs =>
+        Array.map
+            (fun crab => {
+                let distance = Math.abs (crab - index)
+                ret (distance + 1) / 2 * distance
+            })
+            crabs
+        |> Array.sum
+    let index = Math.floor (Math.mean numbers + 0.5)
+    ret totalFuel index numbers
+}
