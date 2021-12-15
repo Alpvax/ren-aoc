@@ -44,6 +44,12 @@ enum Vent
     // [1,1], [2,2] => 0, 1, 1; [3,6], [7,2] => 0, 3, -4(-5?);
     | #diagonal _ _ _
 
+let makeDiagonal = fun [x0, y0] [x1, y1] => {
+    let magnitude = y1 - y0
+    let yIntersect = if magnitude > 0 then y0 - x0 else y0 + x0
+    ret #diagonal yIntersect x0 (if magnitude > 0 then magnitude + 1 else magnitude - 1)
+}
+
 let diagonalX = fun y [yIntersect, x0, magnitude] => {
     let [yMin, yMax] = Array.sort [x0 + yIntersect, x0 + yIntersect + magnitude]
     ret if yMin <= y && y <= yMax
@@ -56,73 +62,50 @@ let getOverlap = fun lineA lineB => {
     let yRange = fun y x0 x1 => Array.map (fun x => [x, y]) (Array.range x0 (x1 - x0 + 1))
     let sortedLines = Array.sortBy
         (fun line => when line
-            is #diagonal _ _ m => if m > 0 then 1.5 else 1 //First (positive before negative gradient)
+            is #diagonal _ _ m => if m > 0 then 1 else 1.5 //First (positive before negative gradient)
             is #vertical _ _ => 2
             is #horizontal _ _ => 3
         )
         [lineA, lineB]
     let overlaps = when sortedLines
-        // [||]
         is [#vertical xA [minYA, maxYA], #vertical xB [minYB, maxYB]] =>
             if xA == xB then #just (xRange xA (Math.max minYA minYB) (Math.min maxYA maxYB)) else #nothing
-        // [--]
+
         is [#horizontal yA [minXA, maxXA], #horizontal yB [minXB, maxXB]] =>
             if yA == yB then #just (yRange yA (Math.max minXA minXB) (Math.min maxXA maxXB)) else #nothing
 
-        // [|-] (Should include [-|] due to sorting)
         is [#vertical xA [minYA, maxYA], #horizontal yB [minXB, maxXB]] =>
             if minXB <= xA && xA <= maxXB && minYA <= yB && yB <= maxYA then #just [[xA, yB]] else #nothing
 
-// Should be impossible due to sorting
-//        is [#horizontal yA [minXA, maxXA], #vertical xB [minYB, maxYB]] =>
-//            if minXA <= xB && xB <= maxXA && minYB <= yA && yA <= maxYB then #just [[xB, yA]] else #nothing
-
-        // [/|] (Should include [|/] due to sorting)
         is [#diagonal yIA xA mA, #vertical xB [minYB, maxYB]] =>
             if xA <= xB && xB <= xA + (Math.abs mA) then {
-                let diagY = yIA + xA * mA
-                ret if minYB <= diagY && diagY <= maxYB then [[xB, diagY]] else #nothing
+                let diagY = yIA + xB * Math.sign mA
+                ret if minYB <= diagY && diagY <= maxYB then #just [[xB, diagY]] else #nothing
             } else #nothing
 
-// Should be impossible due to sorting
-//        is [#vertical xA [minYA, maxYA], #diagonal yIB xB, mB] =>
-//            if xB <= xA && xA <= xB + (Math.abs mB) then {
-//                let diagY = yIB + xB * mB
-//                ret if minYA <= diagY && diagY <= maxYA then [[xA, diagY]] else #nothing
-//            } else #nothing
-
-        // [/-] (Should include [-/] due to sorting)
         is [#diagonal yIA xA mA, #horizontal yB [minXB, maxXB]] =>
             Maybe.andThen
-                (fun diagX => if minXB <= diagX && diagX <= maxXB then [diagX, yB] else )
-                (diagonalX yB [yIA xA mA])
+                (fun diagX => if minXB <= diagX && diagX <= maxXB then #just [[diagX, yB]] else #nothing)
+                (diagonalX yB [yIA, xA, mA])
 
-// Should be impossible due to sorting
-//        is [#horizontal yA [minXA, maxXA], #diagonal yIB xB, mB] =>
-//            if yB <= yA && yA <= yB + mB then {
-//                let diagX = yB + (xA - xB) * mA
-//                ret if minXA <= diagX && diagX <= maxXA then [[diagX, yA]]
-//            } else #nothing
-
-        // [//]
         is [#diagonal yIA xA mA, #diagonal yIB xB mB] => {
-            let maxXA = xA + Math.abs mA
-            let maxXB = xB + Math.abs mB
+            let maxXA = xA + (Math.abs mA)
+            let maxXB = xB + (Math.abs mB)
             ret if xA <= maxXB && xB <= maxXA
             then
-                if Math.sign mA == Math.sign mB // Parallel
+                if (Math.sign mA) == (Math.sign mB) // Parallel
                 then
                     if yIA == yIB
-                    then #just {
+                    then #just ({
                         let minX = Math.max xA xB
                         ret Array.range minX ((Math.min maxXA maxXB) - minX + 1)
                             |> Array.map (fun x => [x, x + yIA])
-                    }
+                    })
                     else #nothing
                 else { // Perpendicular (A should be positive, B negative)
                     let x = (yIB - yIA) / 2
                     ret if xA <= x && xB <= x && x <= maxXA && x <= maxXB
-                    then [[x, yIA + x]]
+                    then #just [[x, yIA + x]]
                     else #nothing
                 }
             else #nothing
@@ -146,8 +129,8 @@ let parseInput = fun lines =>
                 then #horizontal ends[0][1] (ordered ends[0][0] ends[1][0])
                 else (
                     if ends[0][0] < ends[1][0]
-                        then #diagonal (ends[1][1] - ends[0][1]) ends[0]
-                        else #diagonal (ends[0][1] - ends[1][1]) ends[1]
+                        then makeDiagonal ends[0] ends[1]
+                        else makeDiagonal ends[1] ends[0]
                 )
         let _ = Console.log `${line} => ${vent}`
         ret vent :: vents
@@ -158,12 +141,42 @@ let findIntersections = fun vents => {
         let remainingUnchecked = Array.tail uncheckedVents
         let overlaps = Array.filterMap (fun v => getOverlap vent v) remainingUnchecked
         let flatOverlaps = Array.foldr (fun arr positions =>
-            (Array.map (fun pos => `${pos[0]},${pos[1]}`) positions ) ++ arr)
+            (Array.flatMap (fun pos => if Math.mod pos[0] 1 == 0 then #just `${pos[0]},${pos[1]}` else #nothing) positions ) ++ arr)
             []
             overlaps
         ret [Array.unique (flatOverlaps ++ intersections), remainingUnchecked]
     }) [[], vents] vents
     ret intersections
+}
+
+let getPositions = fun vent =>
+    when vent
+        is #vertical x [y0, y1] => Array.map (fun y => [x, y]) (Array.range y0 (y1 - y0 + 1))
+        is #horizontal y [x0, x1] => Array.map (fun x => [x, y]) (Array.range x0 (x1 - x0 + 1))
+        is #diagonal yI x0 m =>
+            Array.range x0 (Math.abs m)
+                |> Array.map (fun x => [x, yI + x * Math.sign m])
+
+let displayGrid = fun xSize ySize vents => {
+    let grid = Array.foldl
+        (fun grid vent =>
+            getPositions vent
+                |> (Array.foldl
+                    (fun rows pos =>
+                        Array.updateAt
+                            pos[1]
+                            (Array.updateAt pos[0] (fun n => n + 1))
+                            rows
+                    )
+                    grid
+                )
+        )
+        (Array.repeat ySize (Array.repeat xSize 0))
+        vents
+    let _ = Console.log "Grid:"
+    let _ = Array.map ((Array.map (fun n => if n > 0 then "" + n else ".")) >> String.join " ") grid
+        |> Array.forEach Console.log
+    ret ()
 }
 
 let solvePartOne = fun vents => {
@@ -178,4 +191,10 @@ let solvePartOne = fun vents => {
     ret Array.length intersections
 }
 
-let solvePartTwo = fun vents => "UNIMPLEMENTED"
+let solvePartTwo = fun vents => {
+    //let _ = Array.forEach (fun v => Console.log `${v}: ${getPositions v}`) vents
+    // let _ = displayGrid 10 10 vents
+    let intersections = findIntersections vents
+    let _ = Console.log intersections
+    ret Array.length intersections
+}
