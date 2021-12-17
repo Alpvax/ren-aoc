@@ -1,0 +1,183 @@
+import "ren/array" as Array exposing { #continue, #stop }
+import "ren/bitwise" as Bitwise
+import "ren/console" as Console
+import "ren/file" as File
+import "ren/logic" as Logic
+import "ren/maybe" as Maybe exposing { #just, #nothing }
+import "ren/object" as Object
+import "ren/string" as String
+import "ren/result" as Result exposing { #ok, #err}
+
+pub fun main = [ year, day, part, test ] => {
+    let input = if Logic.not test
+        then File.open "./input.txt" { sync: true } |> Result.map (String.split "\\n" >> Array.filter (String.isEmpty >> Logic.not))
+        else #ok [
+            "be cfbegad cbdgef fgaecd cgeb fdcge agebfd fecdb fabcd edb | fdgacbe cefdb cefbgd gcbe",
+            "edbfga begcd cbg gc gcadebf fbgde acbgfd abcde gfcbed gfec | fcgedb cgb dgebacf gc",
+            "fgaebd cg bdaec gdafb agbcfd gdcbef bgcad gfac gcb cdgabef | cg cg fdcagb cbg",
+            "fbegcd cbd adcefb dageb afcb bc aefdc ecdab fgdeca fcdbega | efabcd cedba gadfec cb",
+            "aecbfdg fbg gf bafeg dbefa fcge gcbea fcaegb dgceab fcbdga | gecf egdcabf bgf bfgea",
+            "fgeab ca afcebg bdacfeg cfaedg gcfdb baec bfadeg bafgc acf | gebdcfa ecba ca fadegcb",
+            "dbcfg fgd bdegcaf fgec aegbdf ecdfab fbedc dacgb gdcebf gf | cefg dcbef fcge gbcadfe",
+            "bdfegc cbegaf gecbf dfcage bdacg ed bedf ced adcbefg gebcd | ed bcgafe cdgba cbgef",
+            "egadfb cdbfeg cegd fecab cgb gbdefca cg fgcdab egfdb bfceg | gbdfcae bgc cg cgb",
+            "gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce"
+        ]
+
+    ret when input
+        is #ok lines => {
+            let entries = parseInput lines
+            ret when String.toNumber part
+                is #just 1 => solvePartOne entries
+                is #just 2 => solvePartTwo entries
+                else => Console.warn `Unknown part: "${part}".`
+        }
+        is #err e => Console.error e
+}
+
+enum SegmentNumber
+    // #known number litSegments
+    = #known _ _
+    // #unknown [possiblenumbers] litSegments
+    | #unknown _ _
+
+let displayFromSegments = fun segments =>
+    when (String.length segments)
+        is 2 => #known 1 segments
+        is 3 => #known 7 segments
+        is 4 => #known 4 segments
+        is 5 => #unknown [2, 3, 5] segments
+        is 6 => #unknown [0, 6, 9] segments
+        is 7 => #known 8 segments
+
+
+let parseInput = fun lines => {
+    let sortSegments = String.split "" >> Array.sort >> String.join ""
+    ret Array.foldr
+        (fun entries line => {
+            let [inputs, outputs] =
+                String.split " | " line
+                    |> Array.map (
+                        String.split " "
+                            >> Array.map (displayFromSegments >> fun [e, n, s] => [e, n, lettersMask s])
+                    )
+            ret [inputs, outputs] :: entries
+        })
+        []
+        lines
+}
+
+let solvePartOne =
+    Array.foldl
+        (fun out [_, o] =>
+            out ++ (
+                Array.filterMap
+                    (fun seg =>
+                        when seg
+                            is #known n _ => #just n
+                            else => #nothing
+                    )
+                    o
+            )
+        )
+        []
+        >> Array.length
+
+
+let lettersMask =
+    String.split ""
+        >> Array.map
+            (fun letter =>
+                when letter
+                    is "a" => 1
+                    is "b" => 2
+                    is "c" => 4
+                    is "d" => 8
+                    is "e" => 16
+                    is "f" => 32
+                    is "g" => 64
+            )
+        >> Array.sum
+
+let countLitSegments = fun segMask =>
+    Array.range 0 7
+        |> Array.filter (fun i => Bitwise.lshift i 1 |> Bitwise.and segMask)
+        |> Array.length
+
+let decode = fun numbers => {
+    let [_, n1, _, _, n4, _, _, n7, n8, _] =
+        Array.foldlUntil
+            (fun acc segNum => {
+                let acc1 =
+                    when segNum
+                        is #known n segMask => Array.updateAt n (fun _ => segMask) acc
+                        else => acc
+                ret if acc1[1] && acc1[4] && acc1[7] && acc1[8] then #stop acc1 else #continue acc1
+            })
+            (Array.repeat 10 0)
+            numbers
+    let top = Bitwise.xor n1 n7
+    let [[bottom, n9]] =
+        Array.filterMap
+            (fun segNum =>
+                when segNum
+                    is #unknown [_, _, 9] segMask => {
+                        let b = Bitwise.xor (n4 + top) segMask
+                        ret if countLitSegments b == 1 then #just [b, segMask] else #nothing
+                    }
+                    else => #nothing
+
+            )
+            numbers
+    let bottomLeft = Bitwise.xor n8 n9
+    let trm =
+        Array.filterMap
+            (fun segNum =>
+                when segNum
+                    is #unknown [0, 6, 9] segMask if segMask != n9 => {
+                        let b = Bitwise.xor n8 segMask
+                        ret if countLitSegments b == 1 then #just [b, segMask] else #nothing
+                    }
+                    else => #nothing
+
+            )
+            numbers
+    let [n2, n3, n5, topRight, mid] = Array.foldl
+        (fun [m2, m3, m5, tr, m] segNum =>
+            when segNum
+                is #unknown [2, 3, 5] segMask =>
+                    if ((Bitwise.xor (trm[0][0] + trm[1][0]) segMask) |> countLitSegments) == 5
+                    then [m2, m3, segMask] ++ (if Bitwise.and segMask trm[0][0] then [trm[1][0], trm[0][0]] else [trm[0][0], trm[1][0]])
+                    else if Bitwise.and segMask bottomLeft
+                    then [segMask, m3, m5, tr, m]
+                    else [m2, segMask, m5, tr, m]
+                else => [m2, m3, m5, tr, m]
+        )
+        (Array.repeat 5 0)
+        numbers
+    let bottomRight = Bitwise.xor n3 (top + topRight + mid + bottom)
+    let topLeft = Bitwise.xor n8 (top + topRight + mid + bottomLeft + bottomRight + bottom)
+    let n0 = top + topLeft + topRight + bottomLeft + bottomRight + bottom
+    let n6 = top + topLeft + mid + bottomLeft + bottomRight + bottom
+    // let _ = Console.log `top: ${top}, topLeft: ${topLeft}, topRight: ${topRight}, mid: ${mid}, bottomLeft: ${bottomLeft}, bottomRight: ${bottomRight}, bottom: ${bottom}`
+    // let _ = Console.log `0: ${n0}, 1: ${n1}, 2: ${n2}, 3: ${n3}, 4: ${n4}, 5: ${n5}, 6: ${n6}, 7: ${n7}, 8: ${n8}, 9: ${n9}`
+    ret [n0, n1, n2, n3, n4, n5, n6, n7, n8, n9]
+        |> Array.indexedMap (fun i n => [i, n])
+        |> Array.foldl (fun key [i, n] => Object.set n i key) {}
+}
+
+let solvePartTwo = fun entries => Array.map
+    (fun [i, o] => {
+        let key = decode (i ++ o)
+        let _ = Console.log key
+        let lookup = fun [_, _n, segMask] => { let _ = Console.log `looking up ${segMask}: ${key[segMask]}` ret key[segMask] }
+        ret (
+            Array.foldr
+            (fun [t, i] n =>
+                [t + i * lookup n, i * 10]
+            )
+            [0, 1]
+            o
+        )[0]
+    }) entries
+        |> Array.sum
